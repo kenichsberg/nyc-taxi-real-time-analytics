@@ -62,16 +62,18 @@ def calc_delay(target_second: int, current_second: int) -> float:
 
 
 def add_event_datetime(row: T.Row, current_datetime: datetime) -> T.Row:
+    dict = row.asDict()
+
     event_datetime: datetime = datetime(
         current_datetime.year,
         current_datetime.month,
         current_datetime.day,
-        row.hour,
-        row.minute,
-        row.second,
-        row.microsecond
+        dict.pop("hour", None),
+        dict.pop("minute", None),
+        dict.pop("second", None),
+        dict.pop("microsecond", None),
     ) 
-    dict = row.asDict()
+
     dict["timestamp"] = event_datetime
     
     return T.Row(**dict)

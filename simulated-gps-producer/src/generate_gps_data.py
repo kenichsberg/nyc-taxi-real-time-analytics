@@ -16,7 +16,7 @@ def create_spark_session() -> SparkSession:
         spark: SparkSession = (
             SparkSession.builder
             .appName("Simulated gps data generator")
-            .master("local[1]")
+            .master("local[*]")
             .config(
                 "spark.jars.packages",
                 "org.apache.sedona:sedona-spark-3.5_2.12:1.7.2,"
@@ -74,7 +74,7 @@ def join_df_trip_with_location(df_trip: DataFrame, df_location: DataFrame) -> Da
         .join(
             other=df_location.withColumnRenamed("LocationID", "PULocationID"),
             on="PULocationID",
-            how="left"
+            how="inner"
         )
         .withColumnRenamed("borough", "PUBorough")
         .withColumnRenamed("zone", "PUZone")
@@ -82,7 +82,7 @@ def join_df_trip_with_location(df_trip: DataFrame, df_location: DataFrame) -> Da
         .join(
             other=df_location.withColumnRenamed("LocationID", "DOLocationID"),
             on="DOLocationID",
-            how="left"
+            how="inner"
         )
         .withColumnRenamed("borough", "DOBorough")
         .withColumnRenamed("zone", "DOZone")
@@ -128,7 +128,8 @@ def generate_simulated_gps_data(df_trip_with_location: DataFrame) -> DataFrame:
         .select(
             (F.col("pickup_datetime").cast("timestamp").cast("long") + F.col("event_seq_number_per_trip"))
             .cast("timestamp").alias("timestamp"),
-            F.col("current_gps"),
+            F.expr("ST_Y(current_gps)").alias("lat"),
+            F.expr("ST_X(current_gps)").alias("lon"),
             F.col("day_of_week"),
             F.hour("timestamp").alias("hour"),
             F.minute("timestamp").alias("minute"),
@@ -138,27 +139,40 @@ def generate_simulated_gps_data(df_trip_with_location: DataFrame) -> DataFrame:
             F.col("tip_amount"),
             F.col("total_profit"),
         )
+        ###
+        #.filter(
+        #    F.col("day_of_week") == 6
+        #)
+        #.filter(
+        #    (F.col("hour") == 21) | (F.col("hour") == 22) 
+        #)
+        ###
     )
 
 
 def main() -> None:
     spark: SparkSession = create_spark_session()
 
-    df_location: DataFrame = get_df_location(spark)
+    try:
+       df_location: DataFrame = get_df_location(spark)
 
-    df_trip_raw: DataFrame = get_df_trip(spark)
+       df_trip_raw: DataFrame = get_df_trip(spark)
 
-    df_trip_with_location: DataFrame = join_df_trip_with_location(df_trip_raw, df_location)
+       df_trip_with_location: DataFrame = join_df_trip_with_location(df_trip_raw, df_location)
 
-    df_simulated_gps: DataFrame = generate_simulated_gps_data(df_trip_with_location)
-    
-    # Save generated data
-    (
-        df_simulated_gps.write
-        .format("parquet")
-        .mode("overwrite")
-        .save(SIMULATED_GPS_DATA_FILE_PATH)
-    )
+       df_simulated_gps: DataFrame = generate_simulated_gps_data(df_trip_with_location)
+       
+       # Save generated data
+       (
+           df_simulated_gps.write
+           .format("parquet")
+           .mode("overwrite")
+           .save(SIMULATED_GPS_DATA_FILE_PATH)
+       )
+
+    except Exception as e:
+        logging.error(f"Spark processing failed. {e}")
+        raise(e)
 
 
 if __name__ == "__main__":
