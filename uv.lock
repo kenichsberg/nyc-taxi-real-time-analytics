@@ -4,7 +4,7 @@ requires-python = ">=3.13"
 
 [manifest]
 members = [
-    "nyc-taxi-realtime-pipeline",
+    "nyc-taxi-real-time-analytics",
     "simulated-gps-producer",
 ]
 
@@ -1014,7 +1014,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nyc-taxi-realtime-pipeline"
+name = "nyc-taxi-real-time-analytics"
 version = "0.1.0"
 source = { virtual = "." }
 

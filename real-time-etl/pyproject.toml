@@ -1,13 +1,7 @@
 [project]
-name = "nyc-taxi-real-time-analytics"
+name = "real-time-etl"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
-
-[tool.uv.workspace]
-members = [
-    "simulated-gps-producer",
-    "real-time-etl",
-]

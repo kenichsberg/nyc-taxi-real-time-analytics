@@ -1,0 +1,33 @@
+{
+  "schemaName": "gpsdata",
+  "dimensionFieldSpecs": [
+    {
+      "name": "lat",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "fare_amount",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "tip_amount",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "total_profit",
+      "dataType": "DOUBLE"
+    }
+  ],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "timestamp",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ]
+}
