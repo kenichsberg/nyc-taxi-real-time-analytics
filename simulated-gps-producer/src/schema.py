@@ -32,6 +32,7 @@ location_data_schema: T.StructType = T.StructType([
 ])
 
 simulated_gps_data_schema: T.StructType = T.StructType([
+    T.StructField("vendor_id", T.IntegerType()),
     T.StructField("timestamp", T.TimestampType()),
     T.StructField("lat", T.DoubleType()),
     T.StructField("lon", T.DoubleType()),

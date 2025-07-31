@@ -15,7 +15,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: INTERNAL://kafka:29092,CONTROLLER://kafka:29093, EXTERNAL://localhost:9092
-      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: EXTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
@@ -26,6 +26,30 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
 
+  kafka-init:
+    image: apache/kafka:4.0.0
+    depends_on:
+      - kafka
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...';
+      RETRIES=10;
+      until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list || [ $RETRIES -eq 0 ]; do
+        echo 'Kafka not ready, retrying...';
+        sleep 5;
+        RETRIES=$((RETRIES - 1));
+      done;
+      if [ $RETRIES -eq 0 ]; then
+        echo 'Kafka did not become ready in time.' >&2;
+        exit 1;
+      fi;
+      echo 'Kafka is ready. Creating topic...';
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_gps_stream --replication-factor 1 --partitions 3;
+      "
+    networks:
+      - pipeline_net
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     networks:
@@ -34,51 +58,40 @@ services:
       - "8080:8080"
     environment:
       - KAFKA_CLUSTERS_0_NAME=kraft
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
     depends_on:
       - kafka
 
-  pinot:
-    image: apachepinot/pinot:latest
-    container_name: pinot
-    networks:
-      - pipeline_net
-    ports:
-      - "9000:9000"
-    command: "QuickStart -type EMPTY"
-    volumes:
-      - pinot-data:/var/pinot/data
+  #metabase:
+  #  image: metabase/metabase:latest
+  #  container_name: metabase
+  #  networks:
+  #    - pipeline_net
+  #  ports:
+  #    - "3000:3000"
+  #  volumes:
+  #    - metabase-data:/metabase-data
 
-  metabase:
-    image: metabase/metabase:latest
-    container_name: metabase
-    networks:
-      - pipeline_net
-    ports:
-      - "3000:3000"
-    volumes:
-      - metabase-data:/metabase-data
+  #prometheus:
+  #  image: prom/prometheus:latest
+  #  container_name: prometheus
+  #  networks:
+  #    - pipeline_net
+  #  ports:
+  #    - "9090:9090"
+  #  volumes:
+  #    - ./monitoring/pormetheus/:/etc/prometheus/
+  #    - prometheus-data:/prometheus
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    networks:
-      - pipeline_net
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/pormetheus/:/etc/prometheus/
-      - prometheus-data:/prometheus
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    networks:
-      - pipeline_net
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
+  #grafana:
+  #  image: grafana/grafana:latest
+  #  container_name: grafana
+  #  networks:
+  #    - pipeline_net
+  #  ports:
+  #    - "3001:3000"
+  #  volumes:
+  #    - grafana-data:/var/lib/grafana
 
   
   zookeeper:
@@ -164,8 +177,8 @@ services:
   pinot-add-table:
     image: apachepinot/pinot:1.2.0
     volumes:
-      - ./scripts:/scripts
-    command: "'./bin/pinot-admin.sh AddTable -schemaFile /scripts/wikipedia_events_schema.json -tableConfigFile /scripts/wikipedia_events_realtime_table_config.json -controllerHost pinot-controller -exec'"
+      - ./real-time-etl/src/pinot:/scripts
+    command: "'./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_data_schema.json -tableConfigFile /scripts/gps_data_realtime_table_config.json -controllerHost pinot-controller -exec'"
     container_name: "pinot-add-table"
     restart: on-failure
     entrypoint: "bash -c"
@@ -174,21 +187,12 @@ services:
     networks:
       - pipeline_net
     depends_on:
+      kafka-init:
+        condition: service_completed_successfully
       pinot-controller:
         condition: service_healthy
       pinot-broker:
         condition: service_healthy
-
-  pinot-node-consumer:
-    image: pinot-advanced/nodejs-streaming-ingest:1.1.0
-    build:
-      context: node-app
-    container_name: "pinot-node-consumer"
-    restart: on-failure
-    depends_on:
-      - kafka
-    networks:
-      - pipeline_net
 
 
 volumes:

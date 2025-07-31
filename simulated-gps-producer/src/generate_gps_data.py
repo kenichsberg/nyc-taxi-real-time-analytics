@@ -61,6 +61,7 @@ def join_df_trip_with_location(df_trip: DataFrame, df_location: DataFrame) -> Da
     return (
         df_trip
         .select(
+            F.col("VendorID"),
             F.col("tpep_pickup_datetime").alias("pickup_datetime"),
             F.col("tpep_dropoff_datetime").alias("dropoff_datetime"),
             F.dayofweek("tpep_pickup_datetime").alias("day_of_week"),
@@ -126,6 +127,7 @@ def generate_simulated_gps_data(df_trip_with_location: DataFrame) -> DataFrame:
             )
         )
         .select(
+            F.col("VendorID").alias("vendor_id"),
             (F.col("pickup_datetime").cast("timestamp").cast("long") + F.col("event_seq_number_per_trip"))
             .cast("timestamp").alias("timestamp"),
             F.expr("ST_Y(current_gps)").alias("lat"),

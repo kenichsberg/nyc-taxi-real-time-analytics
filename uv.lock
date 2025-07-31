@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 [manifest]
 members = [
     "nyc-taxi-real-time-analytics",
+    "real-time-etl",
     "simulated-gps-producer",
 ]
 
@@ -1487,6 +1488,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d5/d2/e369064aa51009eb9245399fd8ad2c562bd0bcd392a00be44b2a824ded7c/pyyaml_ft-8.0.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:3bb4b927929b0cb162fb1605392a321e3333e48ce616cdcfa04a839271373255", size = 835581, upload-time = "2025-06-10T15:32:12.897Z" },
     { url = "https://files.pythonhosted.org/packages/c0/28/26534bed77109632a956977f60d8519049f545abc39215d086e33a61f1f2/pyyaml_ft-8.0.0-cp313-cp313t-win_amd64.whl", hash = "sha256:de04cfe9439565e32f178106c51dd6ca61afaa2907d143835d501d84703d3793", size = 171579, upload-time = "2025-06-10T15:32:14.34Z" },
 ]
+
+[[package]]
+name = "real-time-etl"
+version = "0.1.0"
+source = { virtual = "real-time-etl" }
 
 [[package]]
 name = "referencing"
