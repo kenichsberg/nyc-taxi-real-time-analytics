@@ -26,7 +26,7 @@ def create_spark_session() -> SparkSession:
         spark: SparkSession = (
             SparkSession.builder
             .appName("Generated data reader")
-            .master("local[1]")
+            .master("local[*]")
             .getOrCreate()
         )
         return spark
@@ -74,28 +74,35 @@ def add_event_datetime(row: T.Row, current_datetime: datetime) -> T.Row:
         dict.pop("microsecond", None),
     ) 
 
-    dict["timestamp"] = event_datetime
+    # timestamp `Long` in milliseconds 
+    dict["timestamp"] = event_datetime.timestamp() * 1000
     
     return T.Row(**dict)
 
 
-async def kafka_batch_send(
+async def kafka_send_rows(
     producer: AIOKafkaProducer,
-    batch: BatchBuilder,
     rows: list[T.Row],
     target_second: int,
     current_datetime: datetime
-) -> None:
+):
+    batch: BatchBuilder = producer.create_batch()
+
     for row in rows:
         enriched_row: T.Row = add_event_datetime(row, current_datetime)
-        batch.append(key=None, value=json.dumps(enriched_row.asDict), timestamp=None)
+        batch.append(
+            key=None,
+            value=json.dumps(enriched_row.asDict()).encode("utf-8"),
+            timestamp=None
+        )
 
     delay: float = calc_delay(target_second, current_datetime.second)  
     await asyncio.sleep(delay)
 
     partitions: set[int] = await producer.partitions_for(TOPIC)
     partition: int = random.choice(tuple(partitions))
-    await producer.send_batch(batch, TOPIC, partition=partition)
+
+    return producer.send_batch(batch, TOPIC, partition=partition)
 
 
 async def schedule_kafka_messages(
@@ -104,8 +111,6 @@ async def schedule_kafka_messages(
         target_second: int,
         current_datetime: datetime,
 ) -> None:
-    batch: BatchBuilder = producer.create_batch()
-
     cnt: int = len(rows)
     chunk_amount: int = 4
     rows_per_chunk: int = math.ceil(cnt / chunk_amount)
@@ -113,21 +118,17 @@ async def schedule_kafka_messages(
         rows[i:i + rows_per_chunk] for i in range(0, cnt, rows_per_chunk)
     ]
 
-    chunk_index = 0
+    sent_batch = [
+        kafka_send_rows(
+            producer, 
+            rows_split[chunk_index], 
+            target_second, 
+            current_datetime
 
-    while chunk_index <= chunk_amount:
-        asyncio.create_task(
-          kafka_batch_send(
-                producer, 
-                batch, 
-                rows_split[chunk_index], 
-                target_second, 
-                current_datetime
-          )
-        )
+        ) for chunk_index in range(0, chunk_amount) 
+    ]
 
-        batch = producer.create_batch()
-        chunk_index += 1
+    [(await (await task)) for task in sent_batch]
 
 
 def get_df_simulated_gps_per_minute(
@@ -140,30 +141,26 @@ def get_df_simulated_gps_per_minute(
     return (
         read_all_gps_data(spark)
         .filter(
-            F.col("day_of_week") == current_datetime.isoweekday()
+            (F.col("day_of_week") == current_datetime.isoweekday())
+                & (F.col("hour") == current_datetime.hour)
+                & (F.col("minute") == current_datetime.minute)
         )
-        .filter(
-            F.col("hour") == current_datetime.hour
-        )
-        .filter(
-            F.col("minute") == current_datetime.minute
-        )
-        .orderBy("second", "microsecond")
+        .orderBy("second")
     )
 
 
-@dag(
-    default_args={
-        "depends_on_past": False,
-        "retries": 2,
-        "retry_delay": timedelta(seconds=1),
-    },
-    dag_id="per_minute_gps_event_producer",
-    schedule="* * * * *",
-    start_date=datetime.now(),
-    catchup=False,
-    dagrun_timeout=timedelta(minutes=1),
-)
+#@dag(
+#    default_args={
+#        "depends_on_past": False,
+#        "retries": 2,
+#        "retry_delay": timedelta(seconds=1),
+#    },
+#    dag_id="per_minute_gps_event_producer",
+#    schedule="* * * * *",
+#    start_date=datetime.now(),
+#    catchup=False,
+#    dagrun_timeout=timedelta(minutes=1),
+#)
 async def run_producer_per_minute () -> None:
     spark: SparkSession = create_spark_session()
 
@@ -171,25 +168,31 @@ async def run_producer_per_minute () -> None:
     await producer.start()
 
     current_ts: int = int(time.time())
-    df_gps_data_per_minute: DataFrame = get_df_simulated_gps_per_minute(spark, current_ts)
+    print("fetching have started")
+    rows: DataFrame = get_df_simulated_gps_per_minute(spark, current_ts).collect()
+    gps_data_rows_per_second: list[list[T.Row]] = [
+        [row for row in rows if row.second == second] for second in range(0, 60)
+    ]
+    print("fetching have completed")
 
-    for second in range(1, 60):
-        df_gps_data_per_second: DataFrame = (
-            df_gps_data_per_minute
-            .filter(F.col("second") == second)
-            .drop(
-                "day_of_week",
-                "hour",
-                "minute",
-                "second",
-            )
-        ) 
+    tasks = []
+    for second, rows_of_second in enumerate(gps_data_rows_per_second):
+        print(second, " appending")
 
-        asyncio.create_task(
-            schedule_kafka_messages(
-                producer, 
-                df_gps_data_per_second.collect(),
-                second,
-                datetime.now()
+        tasks.append(
+            asyncio.create_task(
+                schedule_kafka_messages(
+                    producer, 
+                    rows_of_second,
+                    second,
+                    datetime.now()
+                )
             )
         )
+        print(second, " appended")
+
+    print("awaiting after loop")
+    [(await task) for task in tasks]
+
+if __name__ == "__main__":
+     asyncio.run(run_producer_per_minute())
