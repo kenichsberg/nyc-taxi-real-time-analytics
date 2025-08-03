@@ -10,7 +10,8 @@ from aiokafka import AIOKafkaProducer
 from aiokafka.producer.message_accumulator import BatchBuilder
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T
-from src.schema import simulated_gps_data_schema
+from sedona.spark import SedonaContext, KryoSerializer, SedonaKryoRegistrator
+from src.schema import preprocessed_trip_data_schema
 
 
 KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
@@ -18,17 +19,30 @@ TOPIC = "taxi_gps_stream"
 MINUTE = 60_000
 SECOND = 1_000
 
-SIMULATED_GPS_DATA_FILE_PATH = "./src/data/generated/simulated_gps.parquet"
+SIMULATED_GPS_DATA_FILE_PATH = "./src/data/generated/preprocessed.parquet"
 
 
 def create_spark_session() -> SparkSession:
     try:
         spark: SparkSession = (
             SparkSession.builder
-            .appName("Generated data reader")
+            .appName("Preprocessed data reader / transformer")
             .master("local[*]")
+            .config(
+                "spark.jars.packages",
+                "org.apache.sedona:sedona-spark-3.5_2.12:1.7.2,"
+                "org.datasyslab:geotools-wrapper:1.7.2-28.5",
+            )
+            .config(
+                "spark.jars.repositories",
+                "https://artifacts.unidata.ucar.edu/repository/unidata-all",
+            )
+            .config("spark.serializer", KryoSerializer.getName)
+            .config("spark.kryo.registrator", SedonaKryoRegistrator.getName)
             .getOrCreate()
         )
+
+        SedonaContext.create(spark)
         return spark
 
     except Exception as e:
@@ -40,7 +54,7 @@ def create_spark_session() -> SparkSession:
 def read_all_gps_data(spark: SparkSession) -> DataFrame:
     return (
         spark.read
-        .schema(simulated_gps_data_schema)
+        .schema(preprocessed_trip_data_schema)
         #.option("inferSchema", True)
         .option("path", SIMULATED_GPS_DATA_FILE_PATH)
         .option("header", True)
@@ -71,7 +85,7 @@ def add_event_datetime(row: T.Row, current_datetime: datetime) -> T.Row:
         dict.pop("hour", None),
         dict.pop("minute", None),
         dict.pop("second", None),
-        dict.pop("microsecond", None),
+        math.ceil(dict.pop("microsecond", None) / 1000),
     ) 
 
     # timestamp `Long` in milliseconds 
@@ -89,10 +103,10 @@ async def kafka_send_rows(
     batch: BatchBuilder = producer.create_batch()
 
     for row in rows:
-        enriched_row: T.Row = add_event_datetime(row, current_datetime)
+        #enriched_row: T.Row = add_event_datetime(row, current_datetime)
         batch.append(
             key=None,
-            value=json.dumps(enriched_row.asDict()).encode("utf-8"),
+            value=json.dumps(row.asDict()).encode("utf-8"),
             timestamp=None
         )
 
@@ -141,11 +155,73 @@ def get_df_simulated_gps_per_minute(
     return (
         read_all_gps_data(spark)
         .filter(
-            (F.col("day_of_week") == current_datetime.isoweekday())
-                & (F.col("hour") == current_datetime.hour)
-                & (F.col("minute") == current_datetime.minute)
+            ((F.col("pickup_hour") < current_datetime.hour)
+                | ((F.col("pickup_hour") == current_datetime.hour) 
+                    & (F.col("pickup_minute") <= current_datetime.minute)))
+            &
+            ((F.col("dropoff_hour") > current_datetime.hour)
+                | ((F.col("dropoff_hour") == current_datetime.hour)
+                    & (F.col("dropoff_minute") >= current_datetime.minute)))
         )
-        .orderBy("second")
+        .withColumn(
+            "simulated_event_time_second",
+            F.explode(
+                F.sequence(
+                    F.when(
+                        (F.col("pickup_hour") == current_datetime.hour) 
+                            & (F.col("pickup_minute") == current_datetime.minute),
+                        F.col("pickup_second")
+                    )
+                    .otherwise(0),
+                    F.when(
+                        (F.col("dropoff_hour") == current_datetime.hour) 
+                            & (F.col("dropoff_minute") == current_datetime.minute),
+                        F.col("dropoff_second")
+                    )
+                    .otherwise(60)
+                )
+            )
+        )
+        .withColumn(
+            "current_epoch_seconds",
+            F.make_timestamp(
+                F.lit(1970),
+                F.lit(1),
+                F.lit(1),
+                F.lit(current_datetime.hour),
+                F.lit(current_datetime.minute),
+                F.col("simulated_event_time_second")
+            ).cast("long")
+        )
+        .withColumn(
+            "current_trip_duration",
+            F.expr("current_epoch_seconds - pickup_epoch_seconds")
+        )
+        .withColumn(
+            "current_location",
+            F.when(
+                F.col("total_trip_duration") == 0,
+                F.expr(
+                    "ST_LineInterpolatePoint(trip_path, 1)"
+                )
+            )
+            .otherwise(
+                F.expr(
+                    "ST_LineInterpolatePoint(trip_path, current_trip_duration / total_trip_duration)"
+                )
+            )
+        )
+        .select(
+            "trip_id",
+            F.expr("ST_Y(current_location)").alias("lat"),
+            F.expr("ST_X(current_location)").alias("lon"),
+            F.expr("current_epoch_seconds * 1000").alias("timestamp"),
+            "simulated_event_time_second",
+            "fare_amount",
+            "tip_amount",
+            "total_profit",
+        )
+        #.orderBy("second")
     )
 
 
@@ -169,30 +245,36 @@ async def run_producer_per_minute () -> None:
 
     current_ts: int = int(time.time())
     print("fetching have started")
-    rows: DataFrame = get_df_simulated_gps_per_minute(spark, current_ts).collect()
+    #rows: DataFrame = get_df_simulated_gps_per_minute(spark, current_ts)
+    #print(rows.count())
+    rows: DataFrame = list(get_df_simulated_gps_per_minute(spark, current_ts).toLocalIterator())
     gps_data_rows_per_second: list[list[T.Row]] = [
-        [row for row in rows if row.second == second] for second in range(0, 60)
+        [row for row in rows if row.simulated_event_time_second == second] for second in range(0, 60)
     ]
     print("fetching have completed")
 
-    tasks = []
-    for second, rows_of_second in enumerate(gps_data_rows_per_second):
-        print(second, " appending")
+    try:
+        tasks = []
+        for second, rows_of_second in enumerate(gps_data_rows_per_second):
+            print(second, " appending")
 
-        tasks.append(
-            asyncio.create_task(
-                schedule_kafka_messages(
-                    producer, 
-                    rows_of_second,
-                    second,
-                    datetime.now()
+            tasks.append(
+                asyncio.create_task(
+                    schedule_kafka_messages(
+                        producer, 
+                        rows_of_second,
+                        second,
+                        datetime.now()
+                    )
                 )
             )
-        )
-        print(second, " appended")
+            print(second, " appended")
 
-    print("awaiting after loop")
-    [(await task) for task in tasks]
+        print("awaiting after loop")
+        [(await task) for task in tasks]
+
+    finally:
+        await producer.stop()
 
 if __name__ == "__main__":
      asyncio.run(run_producer_per_minute())

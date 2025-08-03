@@ -3,19 +3,19 @@ import logging
 import geopandas as gpd
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T
-from src.schema import taxi_trip_data_schema, location_data_schema
 from sedona.spark import SedonaContext, KryoSerializer, SedonaKryoRegistrator
+from src.schema import taxi_trip_data_schema, location_data_schema
 
 
 TRIP_DATA_FILE_PATH = "./src/data/yellow_tripdata_2025-05.parquet"
 GEO_DATA_FILE_PATH = "./src/data/taxi_zones.geojson"
-SIMULATED_GPS_DATA_FILE_PATH = "./src/data/generated/simulated_gps.parquet"
+SIMULATED_GPS_DATA_FILE_PATH = "./src/data/generated/preprocessed.parquet"
 
 def create_spark_session() -> SparkSession:
     try:
         spark: SparkSession = (
             SparkSession.builder
-            .appName("Simulated gps data generator")
+            .appName("Taxi trip data preprocessor")
             .master("local[*]")
             .config(
                 "spark.jars.packages",
@@ -61,11 +61,9 @@ def join_df_trip_with_location(df_trip: DataFrame, df_location: DataFrame) -> Da
     return (
         df_trip
         .select(
-            F.col("VendorID"),
             F.col("tpep_pickup_datetime").alias("pickup_datetime"),
             F.col("tpep_dropoff_datetime").alias("dropoff_datetime"),
-            F.dayofweek("tpep_pickup_datetime").alias("day_of_week"),
-            (F.col("tpep_dropoff_datetime").cast("timestamp").cast("long") -  F.col("tpep_pickup_datetime").cast("timestamp").cast("long")).alias("duration_seconds"),
+            (F.col("tpep_dropoff_datetime").cast("timestamp").cast("long") -  F.col("tpep_pickup_datetime").cast("timestamp").cast("long")).alias("total_trip_duration"),
             F.col("PULocationID"),
             F.col("DOLocationID"),
             "fare_amount",
@@ -97,58 +95,23 @@ def generate_simulated_gps_data(df_trip_with_location: DataFrame) -> DataFrame:
         .withColumn("PULocationPoint", F.expr("ST_GeneratePoints(PUGeometry, 1)"))
         .withColumn("DOLocationPoint", F.expr("ST_GeneratePoints(DOGeometry, 1)"))
         .withColumn("trip_path", F.expr("ST_MakeLine(array(PULocationPoint, DOLocationPoint))"))
-        .withColumn(
-            "event_seq_number_per_trip",
-            F.explode(
-                F.sequence(
-                    F.lit(0),
-                    F.when(
-                        F.col("duration_seconds") <= 0,
-                        0
-                    )
-                    .otherwise(
-                        F.col("duration_seconds") - F.lit(1)
-                    )
-                )
-            )
-        )
-        .withColumn(
-            "current_gps",
-            F.when(
-                F.col("duration_seconds") == 0,
-                F.expr(
-                    "ST_LineInterpolatePoint(trip_path, 1)"
-                )
-            )
-            .otherwise(
-                F.expr(
-                    "ST_LineInterpolatePoint(trip_path, event_seq_number_per_trip / duration_seconds)"
-                )
-            )
-        )
         .select(
-            F.col("VendorID").alias("vendor_id"),
-            (F.col("pickup_datetime").cast("timestamp").cast("long") + F.col("event_seq_number_per_trip"))
-            .cast("timestamp").alias("timestamp"),
-            F.expr("ST_Y(current_gps)").alias("lat"),
-            F.expr("ST_X(current_gps)").alias("lon"),
-            F.col("day_of_week"),
-            F.hour("timestamp").alias("hour"),
-            F.minute("timestamp").alias("minute"),
-            F.second("timestamp").alias("second"),
-            F.ceil(F.rand() * F.lit(1000000)).alias("microsecond"),
-            F.col("fare_amount"),
-            F.col("tip_amount"),
-            F.col("total_profit"),
+            F.expr("uuid()").alias("trip_id"),
+            "trip_path",
+            "total_trip_duration",
+            F.hour("pickup_datetime").alias("pickup_hour"),
+            F.minute("pickup_datetime").alias("pickup_minute"),
+            F.second("pickup_datetime").alias("pickup_second"),
+            F.ceil(F.rand() * F.lit(1000)).alias("pickup_microsecond"),
+            F.make_timestamp(F.lit(1970), F.lit(1), F.lit(1), "pickup_hour", "pickup_minute", "pickup_second").cast("long").alias("pickup_epoch_seconds"),
+            F.hour("dropoff_datetime").alias("dropoff_hour"),
+            F.minute("dropoff_datetime").alias("dropoff_minute"),
+            F.second("dropoff_datetime").alias("dropoff_second"),
+            F.ceil(F.rand() * F.lit(1000)).alias("dropoff_microsecond"),
+            "fare_amount",
+            "tip_amount",
+            "total_profit",
         )
-        ###
-        #.filter(
-        #    F.col("day_of_week") == 6
-        #)
-        #.filter(
-        #    (F.col("hour") == 21) | (F.col("hour") == 22) 
-        #)
-        ###
     )
 
 
