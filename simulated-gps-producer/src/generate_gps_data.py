@@ -93,8 +93,8 @@ def join_df_trip_with_location(df_trip: DataFrame, df_location: DataFrame) -> Da
 
 
 def save_before_exploding(df_trip_with_location: DataFrame) -> None:
-    """To prevent from exhausting memory by .explode() call,
-    this function persist all data so the successor function can fetch per smaller chunk."""
+    """To prevent from exhausting memory by exploding (see explode_and_save),
+    Saves all data with partitions, so they can be fetched with smaller chunks."""
     df_intermediate: DataFrame = (
         df_trip_with_location
         ####
@@ -133,10 +133,10 @@ def save_before_exploding(df_trip_with_location: DataFrame) -> None:
 
 
 def explode_and_save(spark: SparkSession, hour: int, minute: int) -> None:
-    """After .explode() the amount of row increase and they exhaust memory.
-    This function persists them dividing into still smaller chunks,
-    so the successor funciton can fetch them before transformation."""
-    print(f"[AFTER Exploding]: fetching data of {hour}:{minute}")
+    """Expands each row to event_seq_number. Each new row will be treated
+    as a record of GPS info of taxi location at every second 
+    (or less frequently if the trip is long)."""
+    print(f"[AFTER Exploding]: generating data of {hour:02d}:{minute:02d}")
     df_intermediate: DataFrame = (
         spark.read
         #.schema(taxi_trip_data_schema)
@@ -146,7 +146,6 @@ def explode_and_save(spark: SparkSession, hour: int, minute: int) -> None:
         .load()
     )
 
-    print(f"[AFTER Exploding]: generating data of {hour}:{minute}")
     df_intermediate: DataFrame = (
         df_intermediate
         .withColumn(
@@ -173,24 +172,26 @@ def explode_and_save(spark: SparkSession, hour: int, minute: int) -> None:
     )
 
     (df_intermediate.write
+     .partitionBy("minute")
      .mode("append")
      .parquet(TEMP_DATA_PATH_AFTER_EXPLODING))
 
 
 
-def calculate_current_location_and_save(spark: SparkSession, hour: int, minute: int) -> None:
-    print(f"[GPS DATA]: fetching data of {hour}:{minute}")
+def calculate_current_location_and_save(spark: SparkSession, minute: int) -> None:
+    """For each exploded row, adds the current geo-location (lat/lon) calculated by
+    Linestring and event_seq_number."""
+    print(f"[GPS DATA]: generating data of {(minute + 1):2d}/60")
     df_intermediate: DataFrame = (
         spark.read
         #.schema(taxi_trip_data_schema)
         .option("inferSchema", True)
         # NOTE To avoid OutOfMemoryError, load and transform data in a small chunk
-        .option("path", TEMP_DATA_PATH_AFTER_EXPLODING)
+        .option("path", TEMP_DATA_PATH_AFTER_EXPLODING + f"/minute={minute}")
         .option("header", True)
         .load()
     )
 
-    print(f"[GPS DATA]: generating data of {hour}:{minute}")
     df_gps_data: DataFrame = (
         df_intermediate
         .withColumn(
@@ -213,19 +214,19 @@ def calculate_current_location_and_save(spark: SparkSession, hour: int, minute: 
             F.expr("ST_X(current_location)").alias("lon"),
             "timestamp",
             "hour",
-            "minute",
+            F.minute("timestamp").alias("minute"),
             "second",
             "microsecond",
             "fare_amount",
             "tip_amount",
             "total_profit",
         )
-        .orderBy("hour", "minute", "second", "microsecond")
+        .orderBy("minute", "second", "microsecond")
     )
 
     (df_gps_data.write
-     .partitionBy("hour", "minute", "second")
-     .mode("overwrite")
+     .partitionBy("minute", "second")
+     .mode("append")
      .parquet(SIMULATED_GPS_DATA_PATH))
 
 
@@ -248,11 +249,11 @@ def main() -> None:
         join_and_save(spark)
 
         hour_minute_pair: list[tuple[int, int]] = [(h, m) for h in range(0, 24) for m in range(0, 60)]
-
         for hour, minute in hour_minute_pair:
             explode_and_save(spark, hour, minute)
 
-        calculate_current_location_and_save(spark, 0, 0)
+        for minute in range(0, 60):
+            calculate_current_location_and_save(spark, minute)
 
     except Exception as e:
         logging.error(f"Spark processing failed. {e}")

@@ -12,7 +12,7 @@ INGESTION_DIR = dir / Path("../data/ingestion/")
 
 def get_partition_path() -> Path:
     now = datetime.now()
-    return PARTITIONED_DIR / f"hour={now.hour}" / f"minute={now.minute}" / f"second={now.second}"
+    return PARTITIONED_DIR / f"minute={now.minute}" / f"second={now.second}"
 
 
 def copy_parquets(src_dir: Path, dst_dir: Path) -> bool:
