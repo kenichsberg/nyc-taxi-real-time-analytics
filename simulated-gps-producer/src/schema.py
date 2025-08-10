@@ -33,6 +33,7 @@ location_data_schema: T.StructType = T.StructType([
 
 simulated_gps_data_schema: T.StructType = T.StructType([
     T.StructField("trip_id", T.StringType()),
+    T.StructField("trip_ended", T.BooleanType()),
     T.StructField("lat", T.DoubleType()),
     T.StructField("lon", T.DoubleType()),
     T.StructField("timestamp", T.TimestampType()),
@@ -43,4 +44,10 @@ simulated_gps_data_schema: T.StructType = T.StructType([
     T.StructField("fare_amount", T.DoubleType()),
     T.StructField("tip_amount", T.DoubleType()),
     T.StructField("total_profit", T.DoubleType()),
+    T.StructField("pickup_location_id", T.IntegerType()),
+    T.StructField("pickup_borough", T.StringType()),
+    T.StructField("pickup_zone", T.StringType()),
+    T.StructField("dropoff_location_id", T.IntegerType()),
+    T.StructField("dropoff_borough", T.StringType()),
+    T.StructField("dropoff_zone", T.StringType()),
 ])

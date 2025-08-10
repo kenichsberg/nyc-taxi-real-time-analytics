@@ -6,23 +6,15 @@
       "dataType": "STRING"
     },
     {
+      "name": "trip_ended",
+      "dataType": "BOOLEAN"
+    },
+    {
       "name": "lat",
       "dataType": "DOUBLE"
     },
     {
       "name": "lon",
-      "dataType": "DOUBLE"
-    },
-    {
-      "name": "fare_amount",
-      "dataType": "DOUBLE"
-    },
-    {
-      "name": "tip_amount",
-      "dataType": "DOUBLE"
-    },
-    {
-      "name": "total_profit",
       "dataType": "DOUBLE"
     }
   ],

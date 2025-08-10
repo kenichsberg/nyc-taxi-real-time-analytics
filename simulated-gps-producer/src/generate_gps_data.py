@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 import geopandas as gpd
+from pyspark import SparkContext
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T
 from pyspark.storagelevel import StorageLevel
@@ -18,8 +19,9 @@ def create_spark_session() -> SparkSession:
     try:
         spark: SparkSession = (
             SparkSession.builder
-            .appName("Taxi trip data preprocessor")
+            .appName("GPS Data Generator")
             .master("local[*]")
+            .config("spark.executor.memory", "4g")
             .config(
                 "spark.jars.packages",
                 "org.apache.sedona:sedona-spark-3.5_2.12:1.7.2,"
@@ -198,18 +200,23 @@ def calculate_current_location_and_save(spark: SparkSession, minute: int) -> Non
             "current_location",
             F.when(
                 F.col("duration") == 0,
-                F.expr(
-                    "ST_LineInterpolatePoint(trip_path, 1)"
-                )
+                F.expr("ST_LineInterpolatePoint(trip_path, 1)")
             )
             .otherwise(
-                F.expr(
-                    "ST_LineInterpolatePoint(trip_path, event_seq_number / total_event_amount)"
-                )
+                F.expr("ST_LineInterpolatePoint(trip_path, event_seq_number / total_event_amount)")
             )
+        )
+        .withColumn(
+            "trip_ended",
+            F.when(
+                F.expr("event_seq_number = total_event_amount"),
+                True
+            )
+            .otherwise(False)
         )
         .select(
             "trip_id",
+            "trip_ended",
             F.expr("ST_Y(current_location)").alias("lat"),
             F.expr("ST_X(current_location)").alias("lon"),
             "timestamp",
@@ -217,9 +224,15 @@ def calculate_current_location_and_save(spark: SparkSession, minute: int) -> Non
             F.minute("timestamp").alias("minute"),
             "second",
             "microsecond",
-            "fare_amount",
-            "tip_amount",
-            "total_profit",
+            F.when(F.col("trip_ended"), "fare_amount").alias("fare_amount"),
+            F.when(F.col("trip_ended"), "tip_amount").alias("tip_amount"),
+            F.when(F.col("trip_ended"), "total_profit").alias("total_profit"),
+            F.when(F.col("trip_ended"), "PULocationID").alias("pickup_location_id"),
+            F.when(F.col("trip_ended"), "PUBorough").alias("pickup_borough"),
+            F.when(F.col("trip_ended"), "PUZone").alias("pickup_zone"),
+            F.when(F.col("trip_ended"), "DOLocationID").alias("dropoff_location_id"),
+            F.when(F.col("trip_ended"), "DOBorough").alias("dropoff_borough"),
+            F.when(F.col("trip_ended"), "DOZone").alias("dropoff_zone"),
         )
         .orderBy("minute", "second", "microsecond")
     )
@@ -246,11 +259,11 @@ def main() -> None:
     spark: SparkSession = create_spark_session()
 
     try:
-        join_and_save(spark)
+        #join_and_save(spark)
 
-        hour_minute_pair: list[tuple[int, int]] = [(h, m) for h in range(0, 24) for m in range(0, 60)]
-        for hour, minute in hour_minute_pair:
-            explode_and_save(spark, hour, minute)
+        #hour_minute_pair: list[tuple[int, int]] = [(h, m) for h in range(0, 24) for m in range(0, 60)]
+        #for hour, minute in hour_minute_pair:
+        #    explode_and_save(spark, hour, minute)
 
         for minute in range(0, 60):
             calculate_current_location_and_save(spark, minute)

@@ -1,0 +1,53 @@
+{
+  "schemaName": "payment",
+  "dimensionFieldSpecs": [
+    {
+      "name": "trip_id",
+      "dataType": "STRING"
+    },
+    {
+      "name": "fare_amount",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "tip_amount",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "total_profit",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "pickup_location_id",
+      "dataType": "INT"
+    },
+    {
+      "name": "pickup_borough",
+      "dataType": "STRING"
+    },
+    {
+      "name": "pickup_zone",
+      "dataType": "STRING"
+    },
+    {
+      "name": "dropoff_location_id",
+      "dataType": "INT"
+    },
+    {
+      "name": "dropoff_borough",
+      "dataType": "STRING"
+    },
+    {
+      "name": "dropoff_zone",
+      "dataType": "STRING"
+    }
+  ],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "gps_timestamp",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ]
+}

@@ -35,7 +35,7 @@ services:
       echo 'Waiting for Kafka to be ready...';
       RETRIES=10;
       until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --list || [ $RETRIES -eq 0 ]; do
-        echo 'Kafka not ready, retrying...';
+        echo 'Kafka is not ready, retrying...';
         sleep 5;
         RETRIES=$((RETRIES - 1));
       done;
@@ -43,8 +43,9 @@ services:
         echo 'Kafka did not become ready in time.' >&2;
         exit 1;
       fi;
-      echo 'Kafka is ready. Creating topic...';
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_gps_stream --replication-factor 1 --partitions 3;
+      echo 'Kafka is ready. Creating topics...';
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_gps --replication-factor 1 --partitions 3;
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_payment --replication-factor 1 --partitions 3;
       "
     networks:
       - pipeline_net

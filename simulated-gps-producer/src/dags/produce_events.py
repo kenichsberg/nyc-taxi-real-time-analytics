@@ -15,7 +15,8 @@ from src.schema import simulated_gps_data_schema
 
 
 KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
-KAFKA_TOPIC = "taxi_gps_stream"
+KAFKA_TOPIC_GPS = "taxi_gps"
+KAFKA_TOPIC_PAYMENT = "taxi_payment"
 
 #TODO move to a common file
 dir = os.path.dirname(__file__)
@@ -33,11 +34,18 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
         .schema(simulated_gps_data_schema)
         .option("header", True)
         .parquet(INGESTION_DIR.absolute().as_posix())
+    )
+
+    # Fan-out: gps | payment
+
+    df_taxi_gps: DataFrame = (
+        df
         .select(
             F.col("trip_id").cast("string").alias("key"),
             F.to_json(
                 F.struct(
                     "trip_id",
+                    "trip_ended",
                     "lat",
                     "lon",
                     F.make_timestamp(
@@ -48,23 +56,61 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
                         F.minute("timestamp"),
                         F.second("timestamp") + F.expr("microsecond / 1000")
                     ).cast("long").alias("gps_timestamp"),
-                    "fare_amount",
-                    "tip_amount",
-                    "total_profit"
                 )
             ).cast("string").alias("value")
         )
     )
 
-    (df.writeStream
+    (df_taxi_gps.writeStream
      .format("kafka")
      .trigger(processingTime="1 second")
      .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVER)
-     .option("topic", KAFKA_TOPIC)
-     .option("checkpointLocation", "/tmp/spark_checkpoint/")
-     .start()
-     .awaitTermination()
-     )
+     .option("topic", KAFKA_TOPIC_GPS)
+     .option("checkpointLocation", f"/tmp/spark_checkpoint/{KAFKA_TOPIC_GPS}/")
+     .start())
+
+
+    df_taxi_payment: DataFrame = (
+        df
+        .filter(F.col("trip_ended"))
+        .select(
+            F.col("trip_id").cast("string").alias("key"),
+            F.to_json(
+                F.struct(
+                    "trip_id",
+                    F.make_timestamp(
+                        F.lit(now.year),
+                        F.lit(now.month),
+                        F.lit(now.day),
+                        F.hour("timestamp"),
+                        F.minute("timestamp"),
+                        F.second("timestamp") + F.expr("microsecond / 1000")
+                    ).cast("long").alias("payment_timestamp"),
+                    "fare_amount",
+                    "tip_amount",
+                    "total_profit",
+                    "pickup_location_id",
+                    "pickup_borough",
+                    "pickup_zone",
+                    "dropoff_location_id",
+                    "dropoff_borough",
+                    "dropoff_zone",
+                )
+            ).cast("string").alias("value")
+        )
+    )
+
+    (df_taxi_payment.writeStream
+     .format("kafka")
+     .trigger(processingTime="1 second")
+     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVER)
+     .option("topic", KAFKA_TOPIC_PAYMENT)
+     .option("checkpointLocation", f"/tmp/spark_checkpoint/{KAFKA_TOPIC_PAYMENT}")
+     .start())
+
+    spark.streams.awaitAnyTermination()
+
+
 
 def main(spark: SparkSession) -> None:
     write_to_kafka_per_second(spark)
