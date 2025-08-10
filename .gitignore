@@ -9,4 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
-simulated-gps-producer/src/data/**
+.env
+
+simulated-gps-producer/src/data/generated/*
+simulated-gps-producer/src/data/staging/*
+simulated-gps-producer/src/data/ingestion/*

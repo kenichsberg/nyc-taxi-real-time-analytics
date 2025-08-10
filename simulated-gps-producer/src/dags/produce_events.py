@@ -37,6 +37,7 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
             F.col("trip_id").cast("string").alias("key"),
             F.to_json(
                 F.struct(
+                    "trip_id",
                     "lat",
                     "lon",
                     F.make_timestamp(
@@ -46,7 +47,7 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
                         F.hour("timestamp"),
                         F.minute("timestamp"),
                         F.second("timestamp") + F.expr("microsecond / 1000")
-                    ).cast("long").alias("timestamp"),
+                    ).cast("long").alias("gps_timestamp"),
                     "fare_amount",
                     "tip_amount",
                     "total_profit"

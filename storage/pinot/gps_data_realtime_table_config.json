@@ -2,7 +2,7 @@
   "tableName": "gpsdata",
   "tableType": "REALTIME",
   "segmentsConfig": {
-    "timeColumnName": "timestamp",
+    "timeColumnName": "gps_timestamp",
     "schemaName": "gpsdata",
     "replication": "1",
     "replicasPerPartition": "1"

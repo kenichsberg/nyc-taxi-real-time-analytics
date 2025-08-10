@@ -2,6 +2,10 @@
   "schemaName": "gpsdata",
   "dimensionFieldSpecs": [
     {
+      "name": "trip_id",
+      "dataType": "STRING"
+    },
+    {
       "name": "lat",
       "dataType": "DOUBLE"
     },
@@ -24,7 +28,7 @@
   ],
   "dateTimeFieldSpecs": [
     {
-      "name": "timestamp",
+      "name": "gps_timestamp",
       "dataType": "LONG",
       "format": "1:MILLISECONDS:EPOCH",
       "granularity": "1:MILLISECONDS"
