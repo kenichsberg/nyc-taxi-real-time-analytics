@@ -137,7 +137,7 @@ services:
     container_name: "pinot-controller"
     hostname: pinot-controller
     volumes:
-      - ./storage/pinot:/scripts
+      - ./datastore/pinot:/scripts
     restart: unless-stopped
     ports:
       - "9000:9000"
