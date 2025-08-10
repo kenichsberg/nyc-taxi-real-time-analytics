@@ -46,6 +46,7 @@ services:
       echo 'Kafka is ready. Creating topics...';
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_gps --replication-factor 1 --partitions 3;
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_payment --replication-factor 1 --partitions 3;
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi_gps_with_zone --replication-factor 1 --partitions 3;
       "
     networks:
       - pipeline_net
@@ -205,7 +206,12 @@ services:
     image: apachepinot/pinot:1.2.0
     volumes:
       - ./storage/pinot:/scripts
-    command: "'./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_data_schema.json -tableConfigFile /scripts/gps_data_realtime_table_config.json -controllerHost pinot-controller -exec'"
+    command: |
+      "
+      ./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_data_schema.json -tableConfigFile /scripts/gps_data_realtime_table_config.json -controllerHost pinot-controller -exec;
+      ./bin/pinot-admin.sh AddTable -schemaFile /scripts/payment_schema.json -tableConfigFile /scripts/payment_realtime_table_config.json -controllerHost pinot-controller -exec;
+      ./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_with_zone_schema.json -tableConfigFile /scripts/gps_with_zone_realtime_table_config.json -controllerHost pinot-controller -exec;
+      "
     container_name: "pinot-add-table"
     restart: on-failure
     entrypoint: "bash -c"

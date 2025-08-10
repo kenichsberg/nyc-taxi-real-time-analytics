@@ -117,7 +117,7 @@ def save_before_exploding(df_trip_with_location: DataFrame) -> None:
         .withColumn("pickup_minute", F.minute("pickup_datetime"))
         .withColumn(
             # NOTE In case duration is longer than 1000 sec, exploding event_seq_number per sec can exhaust memory.
-            # Here create a limit to avoid possibilities of OutOfMemoryError
+            # Here create a limit to avoid the risk of OutOfMemoryError
             "total_event_amount",
             F.when(
                 F.col("duration") >= 1000,

@@ -19,7 +19,7 @@ def create_spark_session() -> SparkSession:
         logging.error(f"Failed to create Spark session. {e}")
         raise(e)
 
-spark = create_spark_session()
+spark: SparkSession = create_spark_session()
 
 if __name__ == "__main__":
     main(spark)
