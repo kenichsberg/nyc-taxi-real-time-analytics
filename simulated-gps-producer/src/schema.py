@@ -38,8 +38,6 @@ simulated_gps_data_schema: T.StructType = T.StructType([
     T.StructField("lon", T.DoubleType()),
     T.StructField("timestamp", T.TimestampType()),
     T.StructField("hour", T.IntegerType()),
-    T.StructField("minute", T.IntegerType()),
-    T.StructField("second", T.IntegerType()),
     T.StructField("microsecond", T.LongType()),
     T.StructField("fare_amount", T.DoubleType()),
     T.StructField("tip_amount", T.DoubleType()),

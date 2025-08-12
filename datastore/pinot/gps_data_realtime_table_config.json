@@ -14,7 +14,7 @@
       "streamType": "kafka",
       "stream.kafka.broker.list": "kafka:29092",
       "stream.kafka.consumer.type": "lowlevel",
-      "stream.kafka.topic.name": "taxi_gps",
+      "stream.kafka.topic.name": "taxi-gps",
       "stream.kafka.decoder.prop.format": "JSON",
       "stream.kafka.consumer.factory.class.name": "org.apache.pinot.plugin.stream.kafka20.KafkaConsumerFactory",
       "stream.kafka.decoder.class.name": "org.apache.pinot.plugin.stream.kafka.KafkaJSONMessageDecoder",

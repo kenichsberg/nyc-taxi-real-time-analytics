@@ -5,8 +5,8 @@ requires-python = ">=3.13"
 [manifest]
 members = [
     "nyc-taxi-real-time-analytics",
-    "real-time-etl",
     "simulated-gps-producer",
+    "stream-transformer",
 ]
 
 [[package]]
@@ -1490,11 +1490,6 @@ wheels = [
 ]
 
 [[package]]
-name = "real-time-etl"
-version = "0.1.0"
-source = { virtual = "real-time-etl" }
-
-[[package]]
 name = "referencing"
 version = "0.36.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1874,6 +1869,41 @@ sdist = { url = "https://files.pythonhosted.org/packages/04/57/d062573f391d06271
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/1f/b876b1f83aef204198a42dc101613fefccb32258e5428b5f9259677864b4/starlette-0.47.2-py3-none-any.whl", hash = "sha256:c5847e96134e5c5371ee9fac6fdf1a67336d5815e09eb2a01fdb57a351ef915b", size = 72984, upload-time = "2025-07-20T17:31:56.738Z" },
 ]
+
+[[package]]
+name = "stream-transformer"
+version = "0.1.0"
+source = { virtual = "stream-transformer" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-sedona" },
+    { name = "attrs" },
+    { name = "geopandas" },
+    { name = "pandas" },
+    { name = "pyspark" },
+    { name = "setuptools" },
+    { name = "shapely" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", specifier = "==3.0.3" },
+    { name = "apache-sedona", specifier = ">=1.7.2" },
+    { name = "attrs", specifier = ">=25.3.0" },
+    { name = "geopandas", specifier = ">=1.1.1" },
+    { name = "pandas", specifier = ">=2.3.1" },
+    { name = "pyspark", specifier = "==3.5.6" },
+    { name = "setuptools", specifier = ">=80.9.0" },
+    { name = "shapely", specifier = ">=2.1.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.4.1" }]
 
 [[package]]
 name = "structlog"

@@ -7,8 +7,8 @@ from sedona.sql.types import GeometryType
 
 
 KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
-KAFKA_TOPIC_IN = "taxi_gps"
-KAFKA_TOPIC_OUT = "taxi_gps_with_zone"
+KAFKA_TOPIC_IN = "taxi-gps"
+KAFKA_TOPIC_OUT = "taxi-gps-with-zone"
 
 GEO_DATA_FILE_PATH = "./src/data/taxi_zones.geojson"
 
@@ -46,37 +46,33 @@ def add_zone_info_to_gps(spark: SparkSession) -> None:
         .load()
     )
 
-    df_zone: DataFrame = (
-        get_df_zone(spark)
-        .select(
-            F.col("LocationID").alias("location_id"),
-            "borough",
-            "zone"
-        )
-    )
-    df_zone_broadcast: DataFrame = F.broadcast(df_zone)
+    df_zone_broadcast: DataFrame = F.broadcast(get_df_zone(spark))
     df_zone_broadcast.createOrReplaceTempView("zones")
 
     df_gps_with_point: DataFrame = (
         df_gps_stream
         .withColumn(
+            "parsed_values",
+            F.from_json(F.col("value").cast("string"), gps_stream_schema)
+        )
+        .select("parsed_values.*")
+        .withColumn(
             "point",
-            "ST_Point(CAST(longitude AS Decimal(24,20)), CAST(latitude AS Decimal(24,20)))"
+            F.expr("ST_Point(CAST(lon AS Decimal(24,20)), CAST(lat AS Decimal(24,20)))")
         )
     )
     df_gps_with_point.createOrReplaceTempView("gps_points")
 
-    joined_df: DataFrame = spark.sql("""
+    df_joined: DataFrame = spark.sql("""
 SELECT *
 FROM gps_points g
 JOIN zones z
-ON ST_Contains(r.region_geom, g.point)
+ON ST_Contains(z.geometry, g.point)
 """
     )
 
-
-    df_enriched: DataFrame = (
-        joined_df
+    df_kafka_messages: DataFrame = (
+        df_joined
         .select(
             F.col("trip_id").cast("string").alias("key"),
             F.to_json(
@@ -86,7 +82,7 @@ ON ST_Contains(r.region_geom, g.point)
                     "lat",
                     "lon",
                     "gps_timestamp",
-                    "location_id",
+                    F.col("LocationID").alias("location_id"),
                     "borough",
                     "zone",
                 )
@@ -94,7 +90,7 @@ ON ST_Contains(r.region_geom, g.point)
         )
     )
 
-    (df_enriched.writeStream
+    (df_kafka_messages.writeStream
      .format("kafka")
      .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVER)
      .option("topic", KAFKA_TOPIC_OUT)

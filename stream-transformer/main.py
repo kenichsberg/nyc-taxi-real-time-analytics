@@ -1,4 +1,3 @@
-
 from pyspark.sql import SparkSession
 import logging
 from sedona.spark import SedonaContext, KryoSerializer, SedonaKryoRegistrator
@@ -9,7 +8,7 @@ def create_spark_session() -> SparkSession:
         spark: SparkSession = (
             SparkSession.builder
             .appName("Kafka Stream Transformer")
-            .master("local[*]")
+            .master("local[3]")
             .config(
                 "spark.jars.packages",
                 "org.apache.sedona:sedona-spark-3.5_2.12:1.7.2,"

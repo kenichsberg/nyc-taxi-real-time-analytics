@@ -6,8 +6,8 @@ def create_spark_session() -> SparkSession:
     try:
         spark: SparkSession = (
             SparkSession.builder
-            .appName("Preprocessed data reader / transformer")
-            .master("local[*]")
+            .appName("Generated data reader / ingestor")
+            .master("local[2]")
             .getOrCreate()
         )
 

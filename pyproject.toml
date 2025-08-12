@@ -9,5 +9,5 @@ dependencies = []
 [tool.uv.workspace]
 members = [
     "simulated-gps-producer",
-    "real-time-etl",
+    "stream-transformer",
 ]

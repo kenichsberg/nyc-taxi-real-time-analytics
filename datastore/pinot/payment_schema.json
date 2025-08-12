@@ -44,7 +44,7 @@
   ],
   "dateTimeFieldSpecs": [
     {
-      "name": "gps_timestamp",
+      "name": "payment_timestamp",
       "dataType": "LONG",
       "format": "1:MILLISECONDS:EPOCH",
       "granularity": "1:MILLISECONDS"

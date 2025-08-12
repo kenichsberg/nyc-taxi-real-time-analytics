@@ -1,34 +1,22 @@
-import asyncio
-import json
-import math
-import random
 from datetime import datetime, timedelta
 import os
 from pathlib import Path
 import logging
 from airflow.decorators import dag
-from aiokafka import AIOKafkaProducer
-from aiokafka.producer.message_accumulator import BatchBuilder
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T
 from src.schema import simulated_gps_data_schema
 
-
 KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
-KAFKA_TOPIC_GPS = "taxi_gps"
-KAFKA_TOPIC_PAYMENT = "taxi_payment"
+KAFKA_TOPIC_GPS = "taxi-gps"
+KAFKA_TOPIC_PAYMENT = "taxi-payment"
 
-#TODO move to a common file
 dir = os.path.dirname(__file__)
-SIMULATED_GPS_DATA_BASE_PATH = dir + "/../data/generated/simulated_gps"
-SPARK_READ_DIR_PATH = dir + "/../data/spark_stream_read/"
-
 PARTITIONED_DIR = dir / Path("../data/generated/simulated_gps")
 INGESTION_DIR = dir / Path("../data/ingestion/")
 
-def write_to_kafka_per_second(spark: SparkSession) -> None:
-    now: datetime = datetime.now()
 
+def write_to_kafka_per_second(spark: SparkSession) -> None:
     df: DataFrame = (
         spark.readStream
         .schema(simulated_gps_data_schema)
@@ -48,14 +36,7 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
                     "trip_ended",
                     "lat",
                     "lon",
-                    F.make_timestamp(
-                        F.lit(now.year),
-                        F.lit(now.month),
-                        F.lit(now.day),
-                        F.hour("timestamp"),
-                        F.minute("timestamp"),
-                        F.second("timestamp") + F.expr("microsecond / 1000")
-                    ).cast("long").alias("gps_timestamp"),
+                    F.current_timestamp().cast("long").alias("gps_timestamp"),
                 )
             ).cast("string").alias("value")
         )
@@ -78,14 +59,7 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
             F.to_json(
                 F.struct(
                     "trip_id",
-                    F.make_timestamp(
-                        F.lit(now.year),
-                        F.lit(now.month),
-                        F.lit(now.day),
-                        F.hour("timestamp"),
-                        F.minute("timestamp"),
-                        F.second("timestamp") + F.expr("microsecond / 1000")
-                    ).cast("long").alias("payment_timestamp"),
+                    F.current_timestamp().cast("long").alias("payment_timestamp"),
                     "fare_amount",
                     "tip_amount",
                     "total_profit",
