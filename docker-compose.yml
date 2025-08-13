@@ -5,6 +5,7 @@ services:
     networks:
       - pipeline_net
     hostname: kafka
+    restart: unless-stopped
     ports:
       - "9092:9092"
     volumes:
@@ -44,9 +45,9 @@ services:
         exit 1;
       fi;
       echo 'Kafka is ready. Creating topics...';
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi-gps --replication-factor 1 --partitions 3;
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi-gps --replication-factor 1 --partitions 40;
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi-payment --replication-factor 1 --partitions 3;
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi-gps-with-zone --replication-factor 1 --partitions 3;
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic taxi-gps-with-zone --replication-factor 1 --partitions 40;
       "
     networks:
       - pipeline_net
@@ -143,7 +144,7 @@ services:
     ports:
       - "9000:9000"
     environment:
-      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Xms1G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-controller.log"
+      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Xms512M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-controller.log"
     depends_on:
       - zookeeper
     healthcheck:
@@ -164,7 +165,7 @@ services:
     ports:
       - "8099:8099"
     environment:
-      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-broker.log"
+      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Xms512M -Xmx2G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-broker.log"
     depends_on:
       pinot-controller:
         condition: service_healthy
@@ -189,7 +190,7 @@ services:
     volumes:
       - pinot-data:/var/pinot/server/data
     environment:
-      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx16G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-server.log"
+      JAVA_OPTS: "-Dplugins.dir=/opt/pinot/plugins -Dpinot.server.instance.dataDir=/var/pinot/server/data -Xms1G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-server.log"
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8097/health/readiness || exit 1" ]
       interval: 30s

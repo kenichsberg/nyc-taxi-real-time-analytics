@@ -8,7 +8,7 @@ def create_spark_session() -> SparkSession:
         spark: SparkSession = (
             SparkSession.builder
             .appName("Kafka Stream Transformer")
-            .master("local[3]")
+            .master("local[2]")
             .config(
                 "spark.jars.packages",
                 "org.apache.sedona:sedona-spark-3.5_2.12:1.7.2,"
