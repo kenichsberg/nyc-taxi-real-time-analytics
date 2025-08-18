@@ -1,5 +1,8 @@
 {
   "schemaName": "gps_with_zone",
+  "primaryKeyColumns": [
+    "trip_id"
+  ],
   "dimensionFieldSpecs": [
     {
       "name": "trip_id",

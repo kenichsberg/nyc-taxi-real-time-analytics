@@ -28,6 +28,10 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
 
     df_taxi_gps: DataFrame = (
         df
+        .withColumn(
+            "gps_timestamp",
+            (F.current_timestamp().cast("double") * 1000).cast("long")
+        )
         .select(
             F.col("trip_id").cast("string").alias("key"),
             F.to_json(
@@ -36,7 +40,7 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
                     "trip_ended",
                     "lat",
                     "lon",
-                    F.current_timestamp().cast("long").alias("gps_timestamp"),
+                    "gps_timestamp",
                 )
             ).cast("string").alias("value")
         )
@@ -54,12 +58,16 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
     df_taxi_payment: DataFrame = (
         df
         .filter(F.col("trip_ended"))
+        .withColumn(
+            "payment_timestamp",
+            (F.current_timestamp().cast("double") * 1000).cast("long")
+        )
         .select(
             F.col("trip_id").cast("string").alias("key"),
             F.to_json(
                 F.struct(
                     "trip_id",
-                    F.current_timestamp().cast("long").alias("payment_timestamp"),
+                    "payment_timestamp",
                     "fare_amount",
                     "tip_amount",
                     "total_profit",
@@ -88,7 +96,3 @@ def write_to_kafka_per_second(spark: SparkSession) -> None:
 
 def main(spark: SparkSession) -> None:
     write_to_kafka_per_second(spark)
-
-
-#if __name__ == "__main__":
-#    main()

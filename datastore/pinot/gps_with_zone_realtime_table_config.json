@@ -5,10 +5,15 @@
     "timeColumnName": "gps_timestamp",
     "schemaName": "gps_with_zone",
     "replication": "1",
-    "replicasPerPartition": "1"
+    "replicasPerPartition": "1",
+    "retentionTimeUnit": "HOURS",
+    "retentionTimeValue": "2"
   },
   "tenants": {},
   "tableIndexConfig": {
+    "sortedColumn": [
+      "trip_id"
+    ],
     "loadMode": "MMAP",
     "streamConfigs": {
       "streamType": "kafka",
@@ -23,8 +28,23 @@
   },
   "metadata": {},
   "quota": {},
-  "routing": {},
+  "routing": {
+    "instanceSelectorType": "strictReplicaGroup"
+  },
   "query": {},
+  "task": {
+    "taskTypeConfigsMap": {
+      "UpsertCompactionTask": {
+        "schedule": "0 0 */1 ? * *",
+        "invalidRecordsThresholdCount": "10000",
+        "bufferTimePeriod": "0d"
+      }
+    }
+  },
+  "upsertConfig": {
+    "mode": "FULL",
+    "enableSnapshot": true
+  },
   "ingestionConfig": {},
   "isDimTable": false
 }

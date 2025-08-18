@@ -5,7 +5,9 @@
     "timeColumnName": "gps_timestamp",
     "schemaName": "gpsdata",
     "replication": "1",
-    "replicasPerPartition": "1"
+    "replicasPerPartition": "1",
+    "retentionTimeUnit": "HOURS",
+    "retentionTimeValue": "2"
   },
   "tenants": {},
   "tableIndexConfig": {

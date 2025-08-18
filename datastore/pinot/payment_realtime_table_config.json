@@ -5,7 +5,9 @@
     "timeColumnName": "payment_timestamp",
     "schemaName": "payment",
     "replication": "1",
-    "replicasPerPartition": "1"
+    "replicasPerPartition": "1",
+    "retentionTimeUnit": "DAYS",
+    "retentionTimeValue": "1"
   },
   "tenants": {},
   "tableIndexConfig": {
