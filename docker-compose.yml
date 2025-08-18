@@ -209,7 +209,6 @@ services:
       - ./datastore/pinot:/scripts
     command: |
       "
-      ./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_data_schema.json -tableConfigFile /scripts/gps_data_realtime_table_config.json -controllerHost pinot-controller -exec;
       ./bin/pinot-admin.sh AddTable -schemaFile /scripts/payment_schema.json -tableConfigFile /scripts/payment_realtime_table_config.json -controllerHost pinot-controller -exec;
       ./bin/pinot-admin.sh AddTable -schemaFile /scripts/gps_with_zone_schema.json -tableConfigFile /scripts/gps_with_zone_realtime_table_config.json -controllerHost pinot-controller -exec;
       "

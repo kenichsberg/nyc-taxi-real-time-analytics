@@ -11,15 +11,15 @@ PARTITIONED_DIR = dir / Path("../data/generated/simulated_gps")
 STAGING_DIR = dir / Path("../data/staging/")
 INGESTION_DIR = dir / Path("../data/ingestion/")
 
-def get_partition_path() -> Path:
-    now = datetime.now()
+def get_partition_path(now: datetime) -> Path:
     return PARTITIONED_DIR / f"minute={now.minute}" / f"second={now.second}"
 
 
 def copy_parquets(
     src_dir: Path,
     staging_dst_dir: Path,
-    final_dst_dir: Path
+    final_dst_dir: Path,
+    now: datetime
 ) -> bool:
     if not src_dir.exists():
         print("No files")
@@ -32,11 +32,12 @@ def copy_parquets(
 
     for file in files:
         print("Copying from: ", file)
-        staging_dst_file: Path = staging_dst_dir / file.name
-        shutil.copy2(file, staging_dst_file)
+        filename: str = str(now.timestamp()) + "_" + file.name
+        staging_dst_file: Path = staging_dst_dir / filename
+        shutil.copy(file, staging_dst_file)
         os.sync()
 
-        final_dst_file: Path = final_dst_dir / file.name
+        final_dst_file: Path = final_dst_dir / filename
         os.rename(staging_dst_file, final_dst_file)
         os.sync()
         print("Copied!")
@@ -49,9 +50,15 @@ def feed_ingestion_per_second() -> None:
     INGESTION_DIR.mkdir(parents=True, exist_ok=True)
 
     while True:
-        partition_path = get_partition_path()
-        copy_parquets(partition_path, STAGING_DIR, INGESTION_DIR)
-        time.sleep(1)
+        now: datetime = datetime.now()
+        partition_path: Path = get_partition_path(now)
+        copy_parquets(
+            partition_path,
+            STAGING_DIR,
+            INGESTION_DIR,
+            now
+        )
+        time.sleep(3)
 
 if __name__ == "__main__":
     feed_ingestion_per_second()
