@@ -242,6 +242,48 @@ services:
       pinot-broker:
         condition: service_healthy
 
+  spark-transformer:
+    build: 
+      context: .
+      dockerfile: stream-transformer/Dockerfile
+    container_name: spark-transformer
+    ports:
+      - "4041:4040"
+    restart: always
+    volumes:
+      - ./stream-transformer:/app
+      - ./stream-transformer/checkpoints:/checkpoints
+    networks:
+      - pipeline_net
+    depends_on:
+      pinot-server:
+        condition: service_healthy
+      pinot-add-table:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4040 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  spark-producer:
+    build: 
+      context: .
+      dockerfile: simulated-gps-producer/Dockerfile
+    container_name: spark-producer
+    restart: always
+    ports:
+      - "4040:4040"
+    volumes:
+      - ./simulated-gps-producer:/app
+      - ./simulated-gps-producer/checkpoints:/checkpoints
+    networks:
+      - pipeline_net
+    depends_on:
+      spark-transformer:
+        condition: service_healthy
+
 
 volumes:
   kafka-data:

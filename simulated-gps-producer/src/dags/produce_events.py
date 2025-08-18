@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F, types as T
 from src.schema import simulated_gps_data_schema
 
-KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
+KAFKA_BOOTSTRAP_SERVER = "kafka:29092"
 KAFKA_TOPIC_GPS = "taxi-gps"
 KAFKA_TOPIC_PAYMENT = "taxi-payment"
 

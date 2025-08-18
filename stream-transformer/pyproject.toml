@@ -3,7 +3,7 @@ name = "stream-transformer"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "apache-airflow==3.0.3",
     "apache-sedona>=1.7.2",

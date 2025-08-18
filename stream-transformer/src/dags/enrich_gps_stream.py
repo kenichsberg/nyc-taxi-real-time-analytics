@@ -7,7 +7,7 @@ from pyspark.sql import functions as F, types as T
 from sedona.sql.types import GeometryType
 
 
-KAFKA_BOOTSTRAP_SERVER = "localhost:9092"
+KAFKA_BOOTSTRAP_SERVER = "kafka:29092"
 KAFKA_TOPIC_IN = "taxi-gps"
 KAFKA_TOPIC_OUT = "taxi-gps-with-zone"
 
