@@ -277,7 +277,6 @@ services:
       - "4040:4040"
     volumes:
       - ./simulated-gps-producer:/app
-      - ./simulated-gps-producer/checkpoints:/checkpoints
     networks:
       - pipeline_net
     depends_on:
