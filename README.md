@@ -4,8 +4,6 @@ This project demonstrates a real-time analytics pipeline for GPS data generated 
 Since the original NYC taxi dataset does not contain geolocation data, I designed and implemented the simulated GPS data generation and transmission, allowing the rest of the pipeline to operate as if it were processing real GPS data.<br />
 <br/>
 *Using*: **Apache Spark, Apache Kafka, Apache Pinot, Metabase, Grafana**
-
-You can access the [**working dashboard here**](https://taxi.kenichsberg.uk/public/dashboard/d9e4d9e9-69b3-4974-bbb0-c84f7a7d1640#refresh=5)
  <img width="935" height="915" alt="dashboard" src="https://github.com/user-attachments/assets/fc43b0b4-9b26-40d3-ac8f-050d512d5541" />
 
 
@@ -45,4 +43,5 @@ The system prepares NYC taxi GPS data in advance and ingests, processes, and vis
 
 
    
+
 
