@@ -56,6 +56,7 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
+    restart: unless-stopped
     networks:
       - pipeline_net
     ports:
@@ -126,6 +127,7 @@ services:
     image: zookeeper:3.9.2
     hostname: zookeeper
     container_name: zookeeper
+    restart: unless-stopped
     ports:
       - "2181:2181"
     environment:
