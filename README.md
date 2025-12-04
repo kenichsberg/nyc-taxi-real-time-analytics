@@ -5,7 +5,7 @@ Since the original NYC taxi dataset does not contain geolocation data, I designe
 <br/>
 *Using*: **Apache Spark, Apache Kafka, Apache Pinot, Metabase, Grafana**
  <img width="935" height="915" alt="dashboard" src="https://github.com/user-attachments/assets/fc43b0b4-9b26-40d3-ac8f-050d512d5541" />\
- <img width="935" height="832" alt="fare-analysis" src="https://github.com/user-attachments/assets/1bc91a16-c4db-415e-b672-fad194edd7f8" />\
+ <img width="935" height="832" alt="fare-analysis" src="https://github.com/user-attachments/assets/1bc91a16-c4db-415e-b672-fad194edd7f8" />
 
 
 
@@ -45,6 +45,7 @@ The system prepares NYC taxi GPS data in advance and ingests, processes, and vis
 
 
    
+
 
 
 
